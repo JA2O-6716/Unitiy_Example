@@ -6,14 +6,18 @@ public class Enemy : MonoBehaviour
     float turnInterVal =1f ; // 적들이 방향을 바꿀 주기
     private Vector2 moveDir; //적들이 움직일 방향
     private Rigidbody2D rigid;
+    public SpriteRenderer spriteRenderer;
+    public float hp = 100;
 
     void Awake()
     {
         rigid = GetComponent<Rigidbody2D>();
+        spriteRenderer = GetComponent<SpriteRenderer>();
     }
     
     void Start()
     {
+        hp = 100;
         turnInterVal = 1;
     }
 
@@ -31,4 +35,5 @@ public class Enemy : MonoBehaviour
         //rigidibody가 붙어있으르모 TransForm 자체를 제어하는것 보단 Rigidibody에 의존하는게 좋다.
         //transform.Translate(moveDir * moveSpeed * Time.deltaTime);
     }
+
 }

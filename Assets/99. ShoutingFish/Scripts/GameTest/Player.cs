@@ -1,14 +1,35 @@
-﻿using System;
+﻿using NUnit.Framework;
+using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Analytics;
 
 public class Player : MonoBehaviour
 {
     public float moveSpeed = 2.0f;
     public Vector3 moveDir;
     public float dashDir;
-    
+    public float bulletSpeed;
+    public float fireInterval = 1f;
+    public float lastFireTime = 0;
+    public float exp = 0;
+    public float Level = 1;
+    public int maxShotPointCount = 4;
+    public int maxLevel = 5;
+
     public GameObject bulletPrefab;
-    public SpriteRenderer spriteRenderer;
+
+    private Transform gunPivot;
+    public List<Transform> shotPoints = new List<Transform>();
+    //public Transform[] shotPoints;
+
+    public SpriteRenderer characterRenderer;
+    public SpriteRenderer gunRenderer;
+
+    void Awake()
+    {
+        gunPivot = transform.Find("GunPivot");
+    }
 
     public float hp = 100;
 
@@ -27,18 +48,34 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
+        IsLevelUP();
         IsDead();
         float x = Input.GetAxis("Horizontal");
         float y = Input.GetAxis("Vertical");
 
-        if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButtonDown(0))
+        Vector3 mousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition); //마우스가 스크린 위에서 어디 위치있는지 월드좌표를 반환하는 함수
+                                                                                //유니티에서는 게임 오브젝트를 "복제"하여 내놓는 함수를 사용함.
+                                                                                //방향 벡터를 활용할때 , 힘의 크기가 필요없다면 백터 길이를 1로 고정
+        //if (x > 0)
+        //{
+        //    characterRenderer.flipX = false;
+        //}
+        //else if(x < 0)
+        //{
+        //    characterRenderer.flipX = true;
+        //}
+        
+        
+        Vector3 fireDir = mousePos - transform.position;
+        fireDir.z = 0;
+
+        gunPivot.right = fireDir; // 총을 자식으로 가지고 있는 GunPivot의 Transform을 조절
+
+        gunRenderer.flipY = fireDir.x < 0; //총이 발사한 방향이 왼쪽 (방향벡터 x값이 -)일 경우 총위아래를 바꿔줌
+
+        if (Input.GetKeyDown(KeyCode.E) || Input.GetMouseButton(0))
         {
-            Vector3 mousePos =  Camera.main.ScreenToWorldPoint(Input.mousePosition); //마우스가 스크린 위에서 어디 위치있는지 월드좌표를 반환하는 함수
-            //유니티에서는 게임 오브젝트를 "복제"하여 내놓는 함수를 사용함.
-            //방향 벡터를 활용할때 , 힘의 크기가 필요없다면 백터 길이를 1로 고정
-            Vector3 fireDir =mousePos - transform.position;
-            fireDir.z = 0;
-            Fire(fireDir.normalized);
+            Fire();
         }
         moveDir = new Vector3(x, y, 0);
 
@@ -50,11 +87,11 @@ public class Player : MonoBehaviour
     {
         if (moveDir.x > 0)
         {
-            spriteRenderer.flipX = false;
+            characterRenderer.flipX = false;
         }
         else if (moveDir.x < 0)
         {
-            spriteRenderer.flipX=true;
+            characterRenderer.flipX=true;
         }
         else
         {
@@ -78,11 +115,20 @@ public class Player : MonoBehaviour
         //currentPosition.y += moveDir.y * moveSpeed * Time.deltaTime;
 
     }
-
-    void Fire(Vector3 fireDir)
+    void Fire()
     {
-        Bullet bullet = Instantiate(bulletPrefab, transform.position, Quaternion.identity).GetComponent<Bullet>();
-        bullet.myDir = fireDir;
+        if (Time.time < lastFireTime + fireInterval) return;
+        lastFireTime = Time.time;
+
+        foreach(Transform shotPoint in shotPoints)
+        {
+            Bullet bullet = Instantiate(bulletPrefab, shotPoint.transform.position, shotPoint.rotation).GetComponent<Bullet>();
+            bullet.PlayerStat = this;
+            bullet.transform.right = shotPoint.right;
+            bullet.transform.up = shotPoint.up;
+            bullet.speed = bulletSpeed;
+            //bullet.movdir
+        }
     }
 
     void OnCollisionStay2D(Collision2D c)
@@ -93,14 +139,29 @@ public class Player : MonoBehaviour
         if (other.CompareTag("Enemy"))
         {
             hp--;
-            CurrentAlpha(1f / 255f);
+            CurrentAlpha(2f / 255f);
+            Debug.Log("player 체력 : " + hp);
         }
     }
 
     void CurrentAlpha(float Damage)
     {
-        Color c = spriteRenderer.color;
+        Color c = characterRenderer.color;
         c.a -= Damage;
-        spriteRenderer.color = c;
+        characterRenderer.color = c;
+    }
+
+    void IsLevelUP()
+    {
+        if(exp >=maxLevel)
+        {
+            exp = 0;
+            Level++;
+            if (shotPoints.Count < maxShotPointCount)
+            {
+                Transform newShotPos = gunRenderer.transform.Find($"ShotPoint ({Level - 1})");
+                shotPoints.Add(newShotPos);
+            }
+        }
     }
 }
